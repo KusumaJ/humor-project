@@ -31,8 +31,8 @@ export default async function Home({
   let allLikesAreZero = true; // Flag to check if all like_counts are zero
 
   // Pagination logic
-  const resolvedSearchParams = await Promise.resolve(searchParams);
-  const currentPage = Number(resolvedSearchParams.page) || 1;
+  // Access searchParams directly after awaiting it
+  const currentPage = Number((await searchParams).page) || 1;
 
   try {
     // Optimized single query to fetch images and their captions
