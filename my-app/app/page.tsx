@@ -127,7 +127,7 @@ export default async function Home({
                     </div>
                   )}
 
-                  <h3 className="text-xl font-medium mb-4 text-black dark:text-white mt-auto"> {/* mt-auto to push to bottom */}
+                  <h3 className="text-xl font-medium mb-4 text-black dark:text-white"> {/* mt-auto removed */}
                     Captions:
                   </h3>
                   {imageWithCaps.captions.length > 0 ? (
