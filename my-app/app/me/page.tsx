@@ -14,7 +14,7 @@ interface VotedCaption {
             id: string;
             url: string;
         } | null;
-    } | null;
+    }[] | null; // Changed to array of captions
 }
 
 export default async function MePage({ searchParams: searchParamsPromise }: { searchParams: Promise<{ filter?: string }> }) {
