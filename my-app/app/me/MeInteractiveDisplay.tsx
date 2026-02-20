@@ -1,29 +1,15 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useMemo } from 'react'
 import Link from 'next/link'
-import SignOutButton from './signoutbutton' // Adjusted path
+import SignOutButton from './signoutbutton'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { createBrowserClient } from '@supabase/ssr' // Direct import for browser client
+import { createBrowserClient } from '@supabase/ssr'
+import { VotedCaption } from '@/types'
 
 interface User {
     id: string;
-    email: string | null;
-}
-
-interface VotedCaption {
-    id: string;
-    vote_value: number;
-    created_datetime_utc: string;
-    captions: {
-        id: string;
-        content: string;
-        like_count: number;
-        images: {
-            id: string;
-            url: string;
-        } | null;
-    }[] | null; // Changed to array of captions
+    email?: string | null;
 }
 
 interface MeInteractiveDisplayProps {
@@ -36,77 +22,27 @@ interface MeInteractiveDisplayProps {
 }
 
 export default function MeInteractiveDisplay({
-    user,
-    initialVotedCaptions,
-    totalVotes,
-    upvotes,
-    downvotes,
-    initialActiveFilter,
-}: MeInteractiveDisplayProps) {
+                                                 user,
+                                                 initialVotedCaptions,
+                                                 totalVotes,
+                                                 upvotes,
+                                                 downvotes,
+                                                 initialActiveFilter,
+                                             }: MeInteractiveDisplayProps) {
     const router = useRouter()
     const searchParams = useSearchParams()
-
-    // Active filter is now controlled by URL search params
     const activeFilter = initialActiveFilter
 
     const supabase = useMemo(() => {
         return createBrowserClient(
             process.env.NEXT_PUBLIC_SUPABASE_URL!,
-            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-            {
-                cookies: {
-                    get(name: string) {
-                        if (typeof document !== 'undefined') {
-                            const cookie = document.cookie.split('; ').find(row => row.startsWith(`${name}=`))
-                            return cookie ? cookie.split('=')[1] : null
-                        }
-                        return null
-                    },
-                    set(name: string, value: string, options: Record<string, any>) {
-                        if (typeof document !== 'undefined') {
-                            let cookieString = `${name}=${value}`
-                            if (options.maxAge) {
-                                cookieString += `; Max-Age=${options.maxAge}`
-                            }
-                            if (options.expires) {
-                                cookieString += `; Expires=${new Date(Date.now() + options.expires * 1000).toUTCString()}`
-                            }
-                            if (options.domain) {
-                                cookieString += `; Domain=${options.domain}`
-                            }
-                            if (options.path) {
-                                cookieString += `; Path=${options.path}`
-                            }
-                            if (options.secure) {
-                                cookieString += `; Secure`
-                            }
-                            if (options.httpOnly) {
-                                cookieString += `; HttpOnly`
-                            }
-                            document.cookie = cookieString
-                        }
-                    },
-                    remove(name: string, options: Record<string, any>) {
-                        if (typeof document !== 'undefined') {
-                            let cookieString = `${name}=; Max-Age=0`
-                            if (options.domain) {
-                                cookieString += `; Domain=${options.domain}`
-                            }
-                            if (options.path) {
-                                cookieString += `; Path=${options.path}`
-                            }
-                            document.cookie = cookieString
-                        }
-                    },
-                },
-            }
+            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
         )
     }, [])
 
     const handleFilterClick = (filter: 'upvotes' | 'downvotes' | 'all') => {
         const current = new URLSearchParams(Array.from(searchParams.entries()))
         current.set('filter', filter)
-        // This is important: using router.push will trigger a server fetch
         router.push(`?${current.toString()}`)
     }
 
@@ -119,7 +55,7 @@ export default function MeInteractiveDisplay({
         return `🗳️ Your Total Votes (${totalVotes})`
     }, [activeFilter, upvotes, downvotes, totalVotes])
 
-    const handleUnvote = async (voteId: string) => {
+    const handleUnvote = async (voteId: number) => {  // Changed to number
         const { error: deleteError } = await supabase
             .from('caption_votes')
             .delete()
@@ -140,7 +76,7 @@ export default function MeInteractiveDisplay({
                 <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6 mb-8">
                     <div className="flex justify-between items-center mb-6">
                         <div>
-                            <h1 className="font-bold text-black dark:text-white">
+                            <h1 className="text-3xl font-bold text-black dark:text-white">
                                 Your Personal Humor Collection
                             </h1>
                             <p className="text-gray-600 dark:text-gray-400 mt-2">
@@ -153,21 +89,27 @@ export default function MeInteractiveDisplay({
                     {/* Stats Grid */}
                     <div className="flex gap-4 mt-6 justify-center">
                         <div
-                            className={`bg-purple-50 dark:bg-purple-900/20 p-4 rounded-lg text-center w-48 cursor-pointer ${activeFilter === 'all' ? 'ring-2 ring-blue-500' : ''}`}
+                            className={`bg-purple-50 dark:bg-purple-900/20 p-4 rounded-lg text-center w-48 cursor-pointer transition-all ${
+                                activeFilter === 'all' ? 'ring-2 ring-blue-500' : 'hover:ring-2 hover:ring-gray-300'
+                            }`}
                             onClick={() => handleFilterClick('all')}
                         >
                             <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">{totalVotes}</div>
                             <div className="text-sm text-gray-600 dark:text-gray-400">Total Votes</div>
                         </div>
                         <div
-                            className={`bg-green-50 dark:bg-green-900/20 p-4 rounded-lg text-center w-48 cursor-pointer ${activeFilter === 'upvotes' ? 'ring-2 ring-blue-500' : ''}`}
+                            className={`bg-green-50 dark:bg-green-900/20 p-4 rounded-lg text-center w-48 cursor-pointer transition-all ${
+                                activeFilter === 'upvotes' ? 'ring-2 ring-blue-500' : 'hover:ring-2 hover:ring-gray-300'
+                            }`}
                             onClick={() => handleFilterClick('upvotes')}
                         >
                             <div className="text-2xl font-bold text-green-600 dark:text-green-400">{upvotes}</div>
                             <div className="text-sm text-gray-600 dark:text-gray-400">Upvotes</div>
                         </div>
                         <div
-                            className={`bg-orange-50 dark:bg-orange-900/20 p-4 rounded-lg text-center w-48 cursor-pointer ${activeFilter === 'downvotes' ? 'ring-2 ring-blue-500' : ''}`}
+                            className={`bg-orange-50 dark:bg-orange-900/20 p-4 rounded-lg text-center w-48 cursor-pointer transition-all ${
+                                activeFilter === 'downvotes' ? 'ring-2 ring-blue-500' : 'hover:ring-2 hover:ring-gray-300'
+                            }`}
                             onClick={() => handleFilterClick('downvotes')}
                         >
                             <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">{downvotes}</div>
@@ -176,19 +118,14 @@ export default function MeInteractiveDisplay({
                     </div>
 
                     <div className="mt-6">
-                        <Link
-                            href="/"
-                            className="text-blue-500 hover:underline"
-                        >
+                        <Link href="/" className="text-blue-500 hover:underline">
                             ← Back to Browse Memes
                         </Link>
                     </div>
                 </div>
 
-                {/* Tabs or Sections */}
+                {/* Voted Captions Section */}
                 <div className="space-y-8">
-
-                    {/* Filtered Voted Captions */}
                     {initialVotedCaptions && initialVotedCaptions.length > 0 ? (
                         <section>
                             <h2 className="text-2xl font-bold mb-4 text-black dark:text-white">
@@ -224,7 +161,7 @@ export default function MeInteractiveDisplay({
                         </section>
                     ) : (
                         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 text-center">
-                            <h3 className="2xl font-bold text-gray-800 dark:text-gray-200 mb-4">
+                            <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-4">
                                 No {activeFilter === 'upvotes' ? 'favorites' : activeFilter === 'downvotes' ? 'downvotes' : 'votes'} yet!
                             </h3>
                             <p className="text-gray-600 dark:text-gray-400 mb-6">

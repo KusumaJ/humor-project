@@ -1,23 +1,13 @@
 import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
 import MeInteractiveDisplay from './MeInteractiveDisplay'
+import { VotedCaption } from '@/types'
 
-interface VotedCaption {
-    id: string;
-    vote_value: number;
-    created_datetime_utc: string;
-    captions: {
-        id: string;
-        content: string;
-        like_count: number;
-        images: {
-            id: string;
-            url: string;
-        } | null;
-    }[] | null; // Changed to array of captions
-}
-
-export default async function MePage({ searchParams: searchParamsPromise }: { searchParams: Promise<{ filter?: string }> }) {
+export default async function MePage({
+                                         searchParams: searchParamsPromise
+                                     }: {
+    searchParams: Promise<{ filter?: string }>
+}) {
     const supabase = await createClient()
 
     const { data: { user }, error } = await supabase.auth.getUser()
@@ -26,20 +16,20 @@ export default async function MePage({ searchParams: searchParamsPromise }: { se
         redirect('/auth')
     }
 
-    const searchParams = await searchParamsPromise; // Await the promise here
+    const searchParams = await searchParamsPromise
 
-    // Fetch ALL voted captions first
-    const { data: allVotedCaptions, error: fetchError } = await supabase
+    // Fetch voted captions with proper typing
+    const { data: rawVotedCaptions, error: fetchError } = await supabase
         .from('caption_votes')
         .select(`
       id,
       vote_value,
       created_datetime_utc,
-      captions (
+      captions!inner (
         id,
         content,
         like_count,
-        images (
+        images!inner (
           id,
           url
         )
@@ -47,32 +37,33 @@ export default async function MePage({ searchParams: searchParamsPromise }: { se
     `)
         .eq('profile_id', user.id)
         .order('created_datetime_utc', { ascending: false })
+        .returns<VotedCaption[]>()  // Tell Supabase the expected return type
 
     if (fetchError) {
-        console.error('Error fetching all voted captions:', fetchError)
-        // Handle error gracefully, perhaps return an error message to the user
+        console.error('Error fetching voted captions:', fetchError)
         return <p>Error loading voted captions.</p>
     }
 
-    const typedAllVotedCaptions: VotedCaption[] = allVotedCaptions as VotedCaption[]
+    // Now TypeScript knows the correct type
+    const typedAllVotedCaptions = rawVotedCaptions || []
 
-    // Calculate stats from ALL voted captions
-    const totalVotes = typedAllVotedCaptions?.length || 0
-    const upvotes = typedAllVotedCaptions?.filter((vote) => vote.vote_value > 0).length || 0
-    const downvotes = typedAllVotedCaptions?.filter((vote) => vote.vote_value < 0).length || 0
+    // Calculate stats
+    const totalVotes = typedAllVotedCaptions.length
+    const upvotes = typedAllVotedCaptions.filter(vote => vote.vote_value > 0).length
+    const downvotes = typedAllVotedCaptions.filter(vote => vote.vote_value < 0).length
 
-    const activeFilter: 'upvotes' | 'downvotes' | 'all' = (searchParams.filter as 'upvotes' | 'downvotes' | 'all') || 'upvotes'
+    const activeFilter: 'upvotes' | 'downvotes' | 'all' =
+        (searchParams.filter as 'upvotes' | 'downvotes' | 'all') || 'upvotes'
 
-
+    // Filter based on active filter
     let filteredCaptionsForDisplay: VotedCaption[] = []
     if (activeFilter === 'upvotes') {
-        filteredCaptionsForDisplay = typedAllVotedCaptions?.filter(vote => vote.vote_value > 0) || []
+        filteredCaptionsForDisplay = typedAllVotedCaptions.filter(vote => vote.vote_value > 0)
     } else if (activeFilter === 'downvotes') {
-        filteredCaptionsForDisplay = typedAllVotedCaptions?.filter(vote => vote.vote_value < 0) || []
-    } else { // 'all'
-        filteredCaptionsForDisplay = typedAllVotedCaptions || []
+        filteredCaptionsForDisplay = typedAllVotedCaptions.filter(vote => vote.vote_value < 0)
+    } else {
+        filteredCaptionsForDisplay = typedAllVotedCaptions
     }
-
 
     return (
         <MeInteractiveDisplay
